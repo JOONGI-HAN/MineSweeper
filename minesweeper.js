@@ -19,14 +19,9 @@ const GRIDSIZEMAPPING = {
     }
 };
 
-function init() {
-    difficultyPicker.addEventListener("change", () => {
-        const {rows, cols} = gridDimensions(difficultyPicker.value);
+function init(rows = GRIDSIZEMAPPING.easy.rows, cols = GRIDSIZEMAPPING.easy.cols) {
+    const grid = drawGrid(rows, cols);
 
-        drawGrid(rows, cols);
-    })
-
-    const grid = drawGrid(GRIDSIZEMAPPING.easy.rows, GRIDSIZEMAPPING.easy.cols);
     renderGridContents(grid);
 }
 
@@ -60,7 +55,7 @@ function drawGrid(rowSize, colSize) {
             gridContainer.appendChild(cell);
         }
     }
-        
+
     return grid;
 }
 
@@ -71,7 +66,18 @@ function renderGridContents(grid) {
     for (cellIdx of mineCells) {
         {/* Render mine sprite into it; Mark it as containing Mine
             & Mark the adjacent cells to it accordingly.*/}
-        const neighbours = _findCellNeighbours(cellIdx, grid);
+        const neighbours = _findMineCellNeighbours(cellIdx, grid);
+        grid[cellIdx].textContent = "B"; // Bomb
+
+        for (let neighbour of neighbours) {
+            if (!mineCells.includes(neighbour)) { // neighbour cell isn't also a bomb cell
+                const neighbourCell = grid[neighbour]
+
+                neighbourCell.textContent = neighbourCell.textContent === ""
+                    ? "1" 
+                    : ++neighbourCell.textContent;
+            }
+        }
     }
 }
 
@@ -94,7 +100,7 @@ function _randomMineCells(grid) {
     return mineCells;
 }
 
-function _findCellNeighbours(mineCellIdx, grid) {
+function _findMineCellNeighbours(mineCellIdx, grid) {
     const neighbours = []; // [indices]
 
     {/* To find all neighbors; it's best to think of all valid "moves"
@@ -126,5 +132,12 @@ function _findCellNeighbours(mineCellIdx, grid) {
     console.log(`Mine cell ${mineCellIdx}--("${grid[mineCellIdx].dataset.index}")'s neighbours are: ${neighbours}`);
     return neighbours;
 }
+
+
+difficultyPicker.addEventListener("change", () => {
+    const {rows, cols} = gridDimensions(difficultyPicker.value);
+
+    init(rows, cols)
+})
 
 init();
