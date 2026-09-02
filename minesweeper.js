@@ -19,10 +19,19 @@ const GRIDSIZEMAPPING = {
     }
 };
 
-function init(rows = GRIDSIZEMAPPING.easy.rows, cols = GRIDSIZEMAPPING.easy.cols) {
-    const grid = drawGrid(rows, cols);
+const GAMESTATE = {
+    "grid"  : [],
+    "mines" : [],
+    "flags" : 0,
+};
 
-    renderGridContents(grid);
+function init(rows  = GRIDSIZEMAPPING.easy.rows, cols = GRIDSIZEMAPPING.easy.cols) {
+    const grid      = drawGrid(rows, cols);
+    const mineCells = _randomMineCells(rows*cols);
+
+    GAMESTATE.grid  = grid;
+    GAMESTATE.mines = mineCells;
+    GAMESTATE.flags = mineCells.length;
 }
 
 function gridDimensions(difficulty) {
@@ -43,51 +52,26 @@ function drawGrid(rowSize, colSize) {
     {/* set the "width" of grid to easy mode size by default */}
     gridContainer.style.setProperty("--cols", Math.max(colSize, 9));
 
-    for (let i = 0; i < rowSize; i++) {
-        for (let j = 0; j < colSize; j++) {
+    for (let i = 0; i < rowSize*colSize; i++) {
+        const cell = document.createElement("div");
 
-            const cell = document.createElement("div");
-
-            cell.classList.add("cell");
-            cell.setAttribute("data-index", `${i},${j}`);
-            
-            grid.push(cell);
-            gridContainer.appendChild(cell);
-        }
+        cell.classList.add("cell");
+        cell.setAttribute("data-index", i);
+        
+        grid.push(cell);
+        gridContainer.appendChild(cell);
     }
 
     return grid;
 }
 
-
-function renderGridContents(grid) {
-    const mineCells = _randomMineCells(grid);
-
-    for (cellIdx of mineCells) {
-        {/* Render mine sprite into it; Mark it as containing Mine
-            & Mark the adjacent cells to it accordingly.*/}
-        const neighbours = _findMineCellNeighbours(cellIdx, grid);
-        grid[cellIdx].textContent = "B"; // Bomb
-
-        for (let neighbour of neighbours) {
-            if (!mineCells.includes(neighbour)) { // neighbour cell isn't also a bomb cell
-                const neighbourCell = grid[neighbour]
-
-                neighbourCell.textContent = neighbourCell.textContent === ""
-                    ? "1" 
-                    : ++neighbourCell.textContent;
-            }
-        }
-    }
-}
-
-function _randomMineCells(grid) {
+function _randomMineCells(mineCount) {
     let index       = 0;
     const mineCells = [];
 
     // choose n random cells to place mines into equating to n allowed mines per difficulty
     while (index < GRIDSIZEMAPPING[difficultyPicker.value].mines) {
-        randomCell = Math.round(Math.random() * grid.length);
+        const randomCell = Math.floor(Math.random() * mineCount);
 
         if (mineCells.includes(randomCell)) continue;
 
@@ -100,44 +84,95 @@ function _randomMineCells(grid) {
     return mineCells;
 }
 
-function _findMineCellNeighbours(mineCellIdx, grid) {
-    const neighbours = []; // [indices]
+function _findNeighbouringCells(cellIdx) {
+    const neighbours = [] // indices
 
     {/* To find all neighbors; it's best to think of all valid "moves"
         that constitute a neighbor to cell "c":
             left by -1, right by 1, up by -width, down by width,
             for diagonal moves, you could move up and down by width, left and right by +-1 */}
+    const horizontalOffsets = [-1, 0, 1];
+    const verticalOffsets   = [-Math.abs(GRIDSIZEMAPPING[difficultyPicker.value].cols), 0, GRIDSIZEMAPPING[difficultyPicker.value].cols];
 
-    const difficulty = difficultyPicker.value;
+    for (const r of horizontalOffsets) {
+        for (const c of verticalOffsets) {
+            const adjacentIndex = cellIdx + r + c
 
-    // 2 sets to generate all possible moves using Cartesian product
-    const horizontailOffsets = [-1, 0, 1];
-    const verticalOffsets    = [-Math.abs(GRIDSIZEMAPPING[difficulty].cols), 0, GRIDSIZEMAPPING[difficulty].cols];
-
-    for (let c of verticalOffsets) {
-        for (let r of horizontailOffsets) {
-            const neighbour = mineCellIdx + r + c
-
-            // index out of range, or index is multiple of grid width means we wrapped to the next row, not a neighbour!
             if (
-                grid[neighbour] == undefined ||
-                neighbour % GRIDSIZEMAPPING[difficulty].cols == 0 ||
-                neighbour === mineCellIdx
+                adjacentIndex + 1 > GRIDSIZEMAPPING[difficultyPicker.value].rows*GRIDSIZEMAPPING[difficultyPicker.value].cols ||
+                adjacentIndex < 0 ||
+                adjacentIndex % GRIDSIZEMAPPING[difficultyPicker.value].cols == 0 ||
+                adjacentIndex == cellIdx
             ) continue;
-
-            neighbours.push(neighbour);
+            
+            neighbours.push(adjacentIndex);
         }
     }
 
-    console.log(`Mine cell ${mineCellIdx}--("${grid[mineCellIdx].dataset.index}")'s neighbours are: ${neighbours}`);
     return neighbours;
 }
 
+// recursive reveal
+function chainReveal(cell, accumulator = {}) {
+    // accumulator ==> {cellIndex : NeighbouringMineCount}
+    const [cellNeighbours, neighbourMineCount] = neighbouringMinesCount(cell);
+    accumulator[cell] = neighbourMineCount;
 
-difficultyPicker.addEventListener("change", () => {
-    const {rows, cols} = gridDimensions(difficultyPicker.value);
+    // recursion base case: if a cell has at least of mine neighbouring it, stop
+    if (neighbourMineCount > 0) {
+        return accumulator;
+    }
 
-    init(rows, cols)
-})
+    for (c of cellNeighbours) {
+        if (c in accumulator) { // neighbour has already been inspected
+            continue;
+        }
+        chainReveal(c, accumulator);
+    }
+
+    return accumulator;
+}
+
+function neighbouringMinesCount(cell) {
+    const neighbours = _findNeighbouringCells(cell);
+    let mineCount    = 0;
+
+    for (const neighbour of neighbours) {
+        if (GAMESTATE.mines.includes(neighbour)) {
+            ++mineCount;
+        }
+    }
+
+    return [neighbours, mineCount];
+}
+
+function renderRevealedCells(cells) {
+    for (const [cell, mineCount] of Object.entries(cells)) {
+        GAMESTATE.grid[cell].style.backgroundColor = "cyan";
+        if (mineCount === 0) {
+            continue;
+        }
+        GAMESTATE.grid[cell].textContent = mineCount;
+    }
+}
+
+function handleCellClick(event) {
+    const clickedCell = Number(event.target.dataset.index);
+
+    const revealedCells = chainReveal(clickedCell);
+
+    renderRevealedCells(revealedCells);
+}
+
+function registerEventListeners() {
+    difficultyPicker.addEventListener("change", () => {
+        const {rows, cols} = gridDimensions(difficultyPicker.value);
+    
+        init(rows, cols);
+    });
+
+    gridContainer.addEventListener("click", handleCellClick) 
+}
 
 init();
+registerEventListeners();
