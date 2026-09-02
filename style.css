@@ -11,27 +11,198 @@ html, body {
 
 body {
     display         : flex;
+    flex-direction  : column;
     align-items     : center;
     justify-content : center;
+    background      : #f5f5f5;
+    font-family     : "Arial Black", Impact, Tahoma, sans-serif;
+    font-weight     : 900;
+}
+
+.difficulty--select {
+    appearance      : none;
+    -webkit-appearance : none;
+    -moz-appearance : none;
+    align-self      : center;
+    margin-bottom   : 10px;
+    padding         : 6px 32px 6px 12px;
+    font-family     : "Arial Black", Impact, Tahoma, sans-serif;
+    font-weight     : 900;
+    font-size       : 14px;
+    letter-spacing  : 1px;
+    color           : #000000;
+    background-color : #c0c0c0;
+    background-image : linear-gradient(45deg, transparent 50%, #000000 50%),
+                        linear-gradient(135deg, #000000 50%, transparent 50%);
+    background-position : calc(100% - 16px) center, calc(100% - 11px) center;
+    background-size     : 5px 5px, 5px 5px;
+    background-repeat   : no-repeat;
+    border-top      : 3px solid #ffffff;
+    border-left     : 3px solid #ffffff;
+    border-bottom   : 3px solid #7b7b7b;
+    border-right    : 3px solid #7b7b7b;
+    cursor          : pointer;
+}
+
+.difficulty--select:active {
+    border-top    : 3px solid #7b7b7b;
+    border-left   : 3px solid #7b7b7b;
+    border-bottom : 3px solid #ffffff;
+    border-right  : 3px solid #ffffff;
 }
 
 .game-container {
-    display         : flex;
-    flex-direction  : column;
+    display            : grid;
+    grid-template-rows : auto 1fr;
+    background         : #c0c0c0;
+    border-top         : 4px solid #ffffff;
+    border-left        : 4px solid #ffffff;
+    border-bottom      : 4px solid #7b7b7b;
+    border-right       : 4px solid #7b7b7b;
+    padding            : 8px;
 }
 
-select {
-    align-self  : flex-start;
+.HUD {
+    display                : grid;
+    grid-template-columns  : 1fr auto 1fr;
+    align-items            : center;
+    background             : #c0c0c0;
+    border-top             : 3px solid #7b7b7b;
+    border-left            : 3px solid #7b7b7b;
+    border-bottom          : 3px solid #ffffff;
+    border-right           : 3px solid #ffffff;
+    padding                : 6px 8px;
+    margin-bottom          : 8px;
+}
+
+.flags-remaining,
+.timer {
+    background     : #000000;
+    color          : #ff0000;
+    font-family    : "Courier New", Courier, monospace;
+    font-weight    : 900;
+    font-size      : 22px;
+    letter-spacing : 2px;
+    padding        : 2px 6px;
+    min-width      : 3ch;
+    text-shadow    : 0 0 4px #ff0000, 0 0 4px #ff0000;
+    -webkit-text-stroke : 0.5px #ff0000;
+    border-top     : 2px solid #7b7b7b;
+    border-left    : 2px solid #7b7b7b;
+    border-bottom  : 2px solid #ffffff;
+    border-right   : 2px solid #ffffff;
+}
+
+.flags-remaining {
+    justify-self : start;
+    text-align   : left;
+}
+
+.timer {
+    justify-self : end;
+    text-align   : right;
+}
+
+.new-game {
+    justify-self    : center;
+    width           : 36px;
+    height          : 36px;
+    display         : flex;
+    align-items     : center;
+    justify-content : center;
+    font-size       : 20px;
+    background      : #c0c0c0;
+    border-top      : 3px solid #ffffff;
+    border-left     : 3px solid #ffffff;
+    border-bottom   : 3px solid #7b7b7b;
+    border-right    : 3px solid #7b7b7b;
+    cursor          : pointer;
+    user-select     : none;
+}
+
+.new-game--pressed {
+    border-top    : 3px solid #7b7b7b;
+    border-left   : 3px solid #7b7b7b;
+    border-bottom : 3px solid #ffffff;
+    border-right  : 3px solid #ffffff;
 }
 
 .grid-container {
     display               : grid;
     grid-template-columns : repeat(var(--cols), auto);
+    background            : #7b7b7b;
+    border-top            : 3px solid #7b7b7b;
+    border-left           : 3px solid #7b7b7b;
+    border-bottom         : 3px solid #ffffff;
+    border-right          : 3px solid #ffffff;
 }
 
 .cell {
-    width      : 32px;
-    height     : 32px; 
-    border     : 1px solid black;
-    text-align : center;
+    position        : relative;
+    width           : 32px;
+    height          : 32px;
+    display         : flex;
+    align-items     : center;
+    justify-content : center;
+    background      : #c0c0c0;
+    border-top      : 3px solid #ffffff;
+    border-left     : 3px solid #ffffff;
+    border-bottom   : 3px solid #7b7b7b;
+    border-right    : 3px solid #7b7b7b;
+    font-family     : "Arial Black", Impact, Tahoma, sans-serif;
+    font-weight     : 900;
+    font-size       : 16px;
+    user-select     : none;
+    cursor          : pointer;
+}
+
+.cell--revealed {
+    background  : #c0c0c0;
+    border      : 1px solid #7b7b7b;
+    box-shadow  : inset 1px 1px 3px rgba(0, 0, 0, 0.35);
+    cursor      : default;
+}
+
+.cell--number-1 { color : darkgreen; -webkit-text-stroke : 0.4px darkgreen; }
+.cell--number-2 { color : darkorange; -webkit-text-stroke : 0.4px darkorange; }
+.cell--number-3 { color : darkred; -webkit-text-stroke : 0.4px darkred; }
+.cell--number-4 { color : navy; -webkit-text-stroke : 0.4px navy; }
+.cell--number-5 { color : maroon; -webkit-text-stroke : 0.4px maroon; }
+.cell--number-6 { color : teal; -webkit-text-stroke : 0.4px teal; }
+.cell--number-7 { color : black; }
+.cell--number-8 { color : dimgray; -webkit-text-stroke : 0.4px dimgray; }
+
+.cell--mine,
+.cell--mine-hit {
+    border    : 1px solid #7b7b7b;
+    font-size : 18px;
+    cursor    : default;
+}
+
+.cell--mine {
+    background : #c0c0c0;
+}
+
+.cell--mine-hit {
+    background : #ff0000;
+}
+
+.cell--flag-incorrect::before,
+.cell--flag-incorrect::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100%;
+  height: 3px;
+  background: red;
+  pointer-events: none;
+}
+
+.cell--flag-incorrect::before {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.cell--flag-incorrect::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
 }

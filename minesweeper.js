@@ -68,7 +68,7 @@ function drawGrid(rowSize, colSize) {
     
     let grid = [];
 
-    /* set the "width" of grid to easy mode size by default */
+    {/* set the "width" of grid to easy mode size by default */}
     gridContainer.style.setProperty("--cols", Math.max(colSize, 9));
 
     for (let i = 0; i < rowSize*colSize; i++) {
@@ -177,13 +177,18 @@ function isMine(cell) {
 
 function renderRevealedCells(cells) {
     for (const [cell, mineCount] of Object.entries(cells)) {
-        GAMESTATE.grid[cell].style.backgroundColor = "cyan";
+        if (GAMESTATE.flags.has(Number(cell))) { // user placed flag there, don't reveal it
+            continue;
+        }
+
+        GAMESTATE.grid[cell].classList.add("cell--revealed");
         GAMESTATE.revealed[cell] = true;
 
         if (mineCount === 0) {
             continue;
         }
         GAMESTATE.grid[cell].textContent = mineCount;
+        GAMESTATE.grid[cell].classList.add(`cell--number-${mineCount}`);
     }
 }
 
@@ -193,12 +198,20 @@ function checkWinCondition() {
     return revealedCount + GAMESTATE.mines.size === GAMESTATE.grid.length;
 }
 
-function gameOver() {
+function gameOver(hitCell) {
     gameEnded = true;
     stopTimer();
 
     for (mineCell of GAMESTATE.mines) {
         GAMESTATE.grid[mineCell].textContent = "💣";
+        GAMESTATE.grid[mineCell].classList.add(mineCell === hitCell ? "cell--mine-hit" : "cell--mine");
+    }
+
+    const mineFlagDiff = GAMESTATE.flags.difference(GAMESTATE.mines);
+    if (mineFlagDiff.size > 0) {
+        for (diff of mineFlagDiff) {
+            GAMESTATE.grid[diff].classList.add("cell--flag-incorrect");
+        }
     }
 }
 
@@ -247,7 +260,7 @@ function handleCellReveal(event) {
     if (!timerInterval) startTimer();
 
     if (isMine(clickedCell)) {
-        gameOver();
+        gameOver(clickedCell);
         return;
     }
 
@@ -300,14 +313,21 @@ function registerEventListeners() {
 
     newGameBtn.addEventListener("mousedown", () => {
         newGameBtn.textContent = "😵";
+        newGameBtn.classList.add("new-game--pressed");
     });
 
     newGameBtn.addEventListener("mouseup", () => {
         newGameBtn.textContent = "😀";
+        newGameBtn.classList.remove("new-game--pressed");
 
         const {rows, cols} = gridDimensions(difficultyPicker.value);
 
         init(rows, cols);
+    });
+
+    newGameBtn.addEventListener("mouseleave", () => {
+        newGameBtn.textContent = "😀";
+        newGameBtn.classList.remove("new-game--pressed");
     });
 }
 
