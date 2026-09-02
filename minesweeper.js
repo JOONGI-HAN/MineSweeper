@@ -1,5 +1,11 @@
 const difficultyPicker = document.querySelector(".difficulty--select");
+
+const flagsCounter     = document.querySelector(".flags-remaining");
+const newGameBtn       = document.querySelector(".new-game");
+const timerCounter     = document.querySelector(".timer");
+
 const gridContainer    = document.querySelector(".grid-container");
+
 
 const GRIDSIZEMAPPING = {
     "easy" : {
@@ -20,18 +26,31 @@ const GRIDSIZEMAPPING = {
 };
 
 const GAMESTATE = {
-    "grid"  : [],
-    "mines" : [],
-    "flags" : 0,
+    "grid"     : [],
+    "mines"    : new Set(),
+    "revealed" : [],
+    "flags"    : new Set(),
 };
+
+let gameEnded      = false;
+let timerInterval  = null;
+let secondsElapsed = 0;
 
 function init(rows  = GRIDSIZEMAPPING.easy.rows, cols = GRIDSIZEMAPPING.easy.cols) {
     const grid      = drawGrid(rows, cols);
     const mineCells = _randomMineCells(rows*cols);
 
-    GAMESTATE.grid  = grid;
-    GAMESTATE.mines = mineCells;
-    GAMESTATE.flags = mineCells.length;
+    GAMESTATE.grid     = grid;
+    GAMESTATE.mines    = mineCells;
+    GAMESTATE.revealed = new Array(rows*cols).fill(false);
+    GAMESTATE.flags    = new Set();
+
+    gameEnded = false;
+    stopTimer();
+    secondsElapsed = 0;
+    timerCounter.textContent = formatTime(secondsElapsed);
+
+    updateFlagsDisplay();
 }
 
 function gridDimensions(difficulty) {
@@ -49,7 +68,7 @@ function drawGrid(rowSize, colSize) {
     
     let grid = [];
 
-    {/* set the "width" of grid to easy mode size by default */}
+    /* set the "width" of grid to easy mode size by default */
     gridContainer.style.setProperty("--cols", Math.max(colSize, 9));
 
     for (let i = 0; i < rowSize*colSize; i++) {
@@ -67,41 +86,47 @@ function drawGrid(rowSize, colSize) {
 
 function _randomMineCells(mineCount) {
     let index       = 0;
-    const mineCells = [];
+    const mineCells = new Set();
 
     // choose n random cells to place mines into equating to n allowed mines per difficulty
     while (index < GRIDSIZEMAPPING[difficultyPicker.value].mines) {
         const randomCell = Math.floor(Math.random() * mineCount);
 
-        if (mineCells.includes(randomCell)) continue;
+        if (mineCells.has(randomCell)) continue;
 
-        mineCells.push(randomCell);
+        mineCells.add(randomCell);
         index++;
     }
 
-    console.log(`All ${GRIDSIZEMAPPING[difficultyPicker.value].mines} cells containing mines: ${mineCells}`);
+    console.log(`All ${GRIDSIZEMAPPING[difficultyPicker.value].mines} cells containing mines: ${[...mineCells]}`);
 
     return mineCells;
 }
 
 function _findNeighbouringCells(cellIdx) {
     const neighbours = [] // indices
+    const rows       = GRIDSIZEMAPPING[difficultyPicker.value].rows;
+    const cols       = GRIDSIZEMAPPING[difficultyPicker.value].cols;
+    const currentCol = cellIdx % cols
 
     {/* To find all neighbors; it's best to think of all valid "moves"
         that constitute a neighbor to cell "c":
             left by -1, right by 1, up by -width, down by width,
             for diagonal moves, you could move up and down by width, left and right by +-1 */}
     const horizontalOffsets = [-1, 0, 1];
-    const verticalOffsets   = [-Math.abs(GRIDSIZEMAPPING[difficultyPicker.value].cols), 0, GRIDSIZEMAPPING[difficultyPicker.value].cols];
+    const verticalOffsets   = [-Math.abs(cols), 0, cols];
 
     for (const r of horizontalOffsets) {
+
+        if (r === -1 && currentCol === 0) continue;
+        if (r === 1 && currentCol === cols - 1) continue;
+
         for (const c of verticalOffsets) {
             const adjacentIndex = cellIdx + r + c
 
             if (
-                adjacentIndex + 1 > GRIDSIZEMAPPING[difficultyPicker.value].rows*GRIDSIZEMAPPING[difficultyPicker.value].cols ||
+                adjacentIndex + 1 > rows*cols ||
                 adjacentIndex < 0 ||
-                adjacentIndex % GRIDSIZEMAPPING[difficultyPicker.value].cols == 0 ||
                 adjacentIndex == cellIdx
             ) continue;
             
@@ -138,7 +163,7 @@ function neighbouringMinesCount(cell) {
     let mineCount    = 0;
 
     for (const neighbour of neighbours) {
-        if (GAMESTATE.mines.includes(neighbour)) {
+        if (GAMESTATE.mines.has(neighbour)) {
             ++mineCount;
         }
     }
@@ -146,9 +171,15 @@ function neighbouringMinesCount(cell) {
     return [neighbours, mineCount];
 }
 
+function isMine(cell) {
+    return GAMESTATE.mines.has(cell);
+}
+
 function renderRevealedCells(cells) {
     for (const [cell, mineCount] of Object.entries(cells)) {
         GAMESTATE.grid[cell].style.backgroundColor = "cyan";
+        GAMESTATE.revealed[cell] = true;
+
         if (mineCount === 0) {
             continue;
         }
@@ -156,12 +187,105 @@ function renderRevealedCells(cells) {
     }
 }
 
-function handleCellClick(event) {
+function checkWinCondition() {
+    const revealedCount = GAMESTATE.revealed.filter(Boolean).length;
+
+    return revealedCount + GAMESTATE.mines.size === GAMESTATE.grid.length;
+}
+
+function gameOver() {
+    gameEnded = true;
+    stopTimer();
+
+    for (mineCell of GAMESTATE.mines) {
+        GAMESTATE.grid[mineCell].textContent = "💣";
+    }
+}
+
+function gameWin() {
+    gameEnded = true;
+    stopTimer();
+
+    console.log("You Win!");
+}
+
+function startTimer() {
+    secondsElapsed = 0;
+    timerCounter.textContent = formatTime(secondsElapsed);
+
+    timerInterval = setInterval(() => {
+        secondsElapsed++;
+        timerCounter.textContent = formatTime(secondsElapsed);
+    }, 1000);
+}
+
+function stopTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+}
+
+function formatTime(totalSeconds) {
+    const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
+    const seconds = (totalSeconds % 60).toString().padStart(2, "0");
+
+    return `${minutes}:${seconds}`;
+}
+
+function updateFlagsDisplay() {
+    const totalMines = GRIDSIZEMAPPING[difficultyPicker.value].mines;
+
+    flagsCounter.textContent = totalMines - GAMESTATE.flags.size;
+}
+
+function handleCellReveal(event) {
+    if (gameEnded) return;
+
     const clickedCell = Number(event.target.dataset.index);
+
+    if (GAMESTATE.revealed[clickedCell] || GAMESTATE.flags.has(clickedCell)) return;
+
+    if (!timerInterval) startTimer();
+
+    if (isMine(clickedCell)) {
+        gameOver();
+        return;
+    }
 
     const revealedCells = chainReveal(clickedCell);
 
     renderRevealedCells(revealedCells);
+
+    if (checkWinCondition()) {
+        gameWin();
+    }
+}
+
+function handleFlagMarker(event) {
+    event.preventDefault();
+
+    if (gameEnded) return;
+
+    const flagTarget = Number(event.target.dataset.index);
+
+    if (GAMESTATE.flags.has(flagTarget)) {
+        GAMESTATE.flags.delete(flagTarget);
+        GAMESTATE.grid[flagTarget].textContent = "";
+
+        updateFlagsDisplay();
+        return;
+    }
+
+    if (
+        GAMESTATE.revealed[flagTarget] ||
+        GAMESTATE.flags.size === GRIDSIZEMAPPING[difficultyPicker.value].mines
+    ) {
+        return;
+    }
+
+    GAMESTATE.flags.add(flagTarget);
+    GAMESTATE.grid[flagTarget].textContent = "🚩";
+
+    updateFlagsDisplay();
 }
 
 function registerEventListeners() {
@@ -171,7 +295,20 @@ function registerEventListeners() {
         init(rows, cols);
     });
 
-    gridContainer.addEventListener("click", handleCellClick) 
+    gridContainer.addEventListener("click", handleCellReveal);
+    gridContainer.addEventListener("contextmenu", handleFlagMarker);
+
+    newGameBtn.addEventListener("mousedown", () => {
+        newGameBtn.textContent = "😵";
+    });
+
+    newGameBtn.addEventListener("mouseup", () => {
+        newGameBtn.textContent = "😀";
+
+        const {rows, cols} = gridDimensions(difficultyPicker.value);
+
+        init(rows, cols);
+    });
 }
 
 init();

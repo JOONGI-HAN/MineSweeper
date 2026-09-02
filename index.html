@@ -11,18 +11,24 @@
 
 <body>
 
+    <select name = "difficulty" class = "difficulty--select">
+        <option value = "easy">Easy</option>
+        <option value = "medium">Medium</option>
+        <option value = "hard">Hard</option>
+    </select>
+    
     <div class = "game-container">
 
-        <select name = "difficulty" class = "difficulty--select">
-            <option value = "easy">Easy</option>
-            <option value = "medium">Medium</option>
-            <option value = "hard">Hard</option>
-        </select>
-
+        <div class = "HUD">
+            <div class = "flags-remaining">10</div>
+            <div class = "new-game">😀</div>
+            <div class = "timer">00:00</div>
+        </div>
+        
         <div class = "grid-container"></div>
-
+        
     </div>
-
+    
     <script src = "minesweeper.js"></script>
 </body>
 
